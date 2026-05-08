@@ -240,6 +240,16 @@ button {
   }
 }
 
+@media (max-width: 480px) {
+  .pane-head {
+    flex-wrap: wrap;
+  }
+  .out-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
 /* ── 作業領域(機能上必要な枠)── */
 
 .pane {
@@ -408,7 +418,7 @@ textarea:focus {
 }
 
 .color-chip span {
-  color: var(--ink-faint);
+  color: var(--ink-soft);
 }
 
 .color-chip.active {
@@ -458,7 +468,7 @@ textarea:focus {
 }
 
 .preview-cell span {
-  opacity: 0.7;
+  opacity: 0.85;
 }
 
 .preview-art {
@@ -528,6 +538,7 @@ textarea:focus {
   padding: 8px 18px;
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
   transition:
     background-color 0.16s var(--ease),
     opacity 0.16s var(--ease);
@@ -549,6 +560,7 @@ textarea:focus {
   color: var(--ink-soft);
   padding: 5px 13px;
   font-size: 12px;
+  white-space: nowrap;
   transition:
     color 0.16s var(--ease),
     border-color 0.16s var(--ease);
