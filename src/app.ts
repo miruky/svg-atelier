@@ -48,6 +48,8 @@ export class App {
   constructor(private readonly root: HTMLElement) {
     this.render();
     this.wire();
+    this.restore();
+    this.update();
   }
 
   private render(): void {
@@ -89,6 +91,15 @@ export class App {
               <label><input type="radio" name="a11y" value="meaningful" data-id="a11y-mean"> 意味あり(role+title)</label>
               <input type="text" data-id="label" class="label-input" placeholder="ラベル(例: 検索)" disabled>
             </div>
+            <div class="opt-row">
+              <span>小数の精度:</span>
+              <select data-id="precision" class="opt-select" aria-label="座標の小数桁">
+                <option value="0">0桁</option>
+                <option value="1">1桁</option>
+                <option value="2" selected>2桁</option>
+                <option value="3">3桁</option>
+              </select>
+            </div>
           </div>
           <h2>色 → currentColor</h2>
           <p class="hint">クリックした色をcurrentColorに置き換える。テーマの文字色に追従するようになる</p>
@@ -99,8 +110,9 @@ export class App {
           <div class="preview-grid" data-id="previews"></div>
           <div class="pane-head">
             <h2>出力</h2>
-            <span>
+            <span class="out-actions">
               <span class="size-note" data-id="sizes"></span>
+              <button type="button" class="ghost-btn" data-id="download" disabled>ダウンロード</button>
               <button type="button" class="primary-btn" data-id="copy" disabled>コピー</button>
             </span>
           </div>
@@ -125,7 +137,7 @@ export class App {
       this.currentColorTargets.clear();
       this.update(true);
     });
-    for (const id of ['opt-optimize', 'opt-dropsize', 'a11y-deco', 'a11y-mean']) {
+    for (const id of ['opt-optimize', 'opt-dropsize', 'a11y-deco', 'a11y-mean', 'precision']) {
       this.el[id]!.addEventListener('change', () => this.update(true));
     }
     const label = this.el['label'] as HTMLInputElement;
@@ -144,6 +156,19 @@ export class App {
       this.copyTimer = window.setTimeout(() => {
         copy.textContent = 'コピー';
       }, 1400);
+    });
+    this.el['download']!.addEventListener('click', () => {
+      const text = this.el['output']!.textContent ?? '';
+      if (!text || text.startsWith('(')) return;
+      const blob = new Blob([text], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'icon.svg';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     });
     this.el['theme']!.addEventListener('click', () => {
       this.theme = nextTheme(this.theme);
@@ -165,11 +190,49 @@ export class App {
     (this.el['label'] as HTMLInputElement).disabled = !meaningful;
     return {
       optimize: (this.el['opt-optimize'] as HTMLInputElement).checked,
-      precision: 2,
+      precision: Number((this.el['precision'] as HTMLSelectElement).value),
       dropSize: (this.el['opt-dropsize'] as HTMLInputElement).checked,
       a11yMode: meaningful ? 'meaningful' : 'decorative',
       label: (this.el['label'] as HTMLInputElement).value,
     };
+  }
+
+  private restore(): void {
+    try {
+      const raw = localStorage.getItem('svg-atelier.session');
+      if (!raw) return;
+      const s = JSON.parse(raw) as Record<string, unknown>;
+      if (typeof s.input === 'string') (this.el['input'] as HTMLTextAreaElement).value = s.input;
+      (this.el['opt-optimize'] as HTMLInputElement).checked = s.optimize !== false;
+      (this.el['opt-dropsize'] as HTMLInputElement).checked = s.dropSize !== false;
+      const meaningful = s.a11y === 'meaningful';
+      (this.el['a11y-mean'] as HTMLInputElement).checked = meaningful;
+      (this.el['a11y-deco'] as HTMLInputElement).checked = !meaningful;
+      if (typeof s.label === 'string') (this.el['label'] as HTMLInputElement).value = s.label;
+      if (typeof s.precision === 'string') {
+        (this.el['precision'] as HTMLSelectElement).value = s.precision;
+      }
+    } catch {
+      // 壊れた保存値は無視する
+    }
+  }
+
+  private save(): void {
+    try {
+      localStorage.setItem(
+        'svg-atelier.session',
+        JSON.stringify({
+          input: (this.el['input'] as HTMLTextAreaElement).value,
+          optimize: (this.el['opt-optimize'] as HTMLInputElement).checked,
+          dropSize: (this.el['opt-dropsize'] as HTMLInputElement).checked,
+          a11y: (this.el['a11y-mean'] as HTMLInputElement).checked ? 'meaningful' : 'decorative',
+          label: (this.el['label'] as HTMLInputElement).value,
+          precision: (this.el['precision'] as HTMLSelectElement).value,
+        }),
+      );
+    } catch {
+      // 保存できなくても動作には影響しない
+    }
   }
 
   private update(animate = false): void {
@@ -177,6 +240,8 @@ export class App {
     const error = this.el['error']!;
     const output = this.el['output']!;
     const copy = this.el['copy'] as HTMLButtonElement;
+    const download = this.el['download'] as HTMLButtonElement;
+    this.save();
     // 再構築のたびに自動再生しないよう、まずアニメーション用クラスを外す
     this.el['previews']!.classList.remove('is-updated');
     output.classList.remove('is-updated');
@@ -188,6 +253,7 @@ export class App {
       this.el['previews']!.innerHTML = '';
       this.el['sizes']!.textContent = '';
       copy.disabled = true;
+      download.disabled = true;
       return;
     }
 
@@ -198,6 +264,7 @@ export class App {
       error.textContent = cause instanceof SvgParseError ? cause.message : '解析に失敗した';
       error.hidden = false;
       copy.disabled = true;
+      download.disabled = true;
       return;
     }
     error.hidden = true;
@@ -216,6 +283,7 @@ export class App {
     const result = serializeSvg(root);
     output.textContent = result;
     copy.disabled = false;
+    download.disabled = false;
     this.el['sizes']!.textContent =
       `${new Blob([source]).size} B から ${new Blob([result]).size} B へ`;
     this.renderColors(colors);
