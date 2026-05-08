@@ -2,6 +2,7 @@ import { applyAccessibility, ensureViewBox, type A11yMode } from './lib/a11y';
 import { collectColors, replaceWithCurrentColor } from './lib/colors';
 import { optimizeSvg } from './lib/optimize';
 import { parseSvg, serializeSvg, SvgParseError } from './lib/parse';
+import { applyTheme, loadTheme, nextTheme, THEME_LABEL, type ThemeMode } from './theme';
 
 const SAMPLE_SVG = `<?xml version="1.0" encoding="UTF-8"?>
 <!-- Generator: Some Editor 7.1 -->
@@ -10,13 +11,25 @@ const SAMPLE_SVG = `<?xml version="1.0" encoding="UTF-8"?>
   <path fill="#e8b04b" d="M12.000001 2.333333l2.939231 5.955549 6.572502 0.955049-4.755866 4.635905 1.122732 6.545497L12 17.333333l-5.878599 3.092 1.122732-6.545497L2.488267 9.243931l6.572502-0.955049z"/>
 </svg>`;
 
-const LOGO_SVG = `
-<svg viewBox="0 0 64 64" width="44" height="44" role="img" aria-label="svg-atelierのロゴ">
-  <title>svg-atelier</title>
-  <rect x="10" y="10" width="44" height="44" rx="8" fill="none" stroke="currentColor" stroke-width="4"/>
-  <path d="M22 42L32 22l10 20" fill="none" stroke="#b07fd4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M26 35h12" stroke="#b07fd4" stroke-width="4" stroke-linecap="round"/>
+const BRAND_MARK = `
+<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7">
+  <rect x="3.5" y="3.5" width="17" height="17" rx="4"/>
+  <path d="M6.8 16l3.4-4.8 2.4 3 2-2.5L17.2 16" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
+
+const THEME_ICON: Record<ThemeMode, string> = {
+  light: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+    <circle cx="12" cy="12" r="4.2"/>
+    <path d="M12 3v2.4M12 18.6V21M4.5 4.5l1.7 1.7M17.8 17.8l1.7 1.7M3 12h2.4M18.6 12H21M4.5 19.5l1.7-1.7M17.8 6.2l1.7-1.7"/>
+  </svg>`,
+  dark: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 14.2A7.5 7.5 0 0 1 9.8 4 7.5 7.5 0 1 0 20 14.2z"/>
+  </svg>`,
+  auto: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7">
+    <circle cx="12" cy="12" r="8.4"/>
+    <path d="M12 3.6a8.4 8.4 0 0 1 0 16.8z" fill="currentColor" stroke="none"/>
+  </svg>`,
+};
 
 interface Options {
   optimize: boolean;
@@ -29,6 +42,7 @@ interface Options {
 export class App {
   private readonly el: Record<string, HTMLElement> = {};
   private currentColorTargets = new Set<string>();
+  private theme: ThemeMode = loadTheme();
 
   constructor(private readonly root: HTMLElement) {
     this.render();
@@ -37,14 +51,23 @@ export class App {
 
   private render(): void {
     this.root.innerHTML = `
-      <header class="site-header">
-        <span class="logo" aria-hidden="true">${LOGO_SVG}</span>
-        <div>
-          <h1>svg-atelier</h1>
-          <p class="tagline">SVGアイコンの最適化・currentColor化・アクセシビリティ属性付与</p>
+      <a class="skip-link" href="#work">本文へ移動</a>
+      <header class="topbar">
+        <div class="topbar-inner">
+          <a class="brand" href="./" aria-label="svg-atelier ホーム">
+            <span class="brand-mark">${BRAND_MARK}</span>
+            <span class="brand-name">svg-atelier</span>
+          </a>
+          <button type="button" class="theme-toggle" data-id="theme"></button>
         </div>
       </header>
-      <main class="columns">
+      <div class="shell">
+      <div class="intro">
+        <p class="kicker">svg icon editor</p>
+        <h1>SVGアイコンの最適化と仕上げ</h1>
+        <p class="tagline">エディタ由来のメタデータを削り、色を currentColor に置き換え、用途に応じたアクセシビリティ属性を付けて書き出します。</p>
+      </div>
+      <main id="work" class="columns">
         <section class="pane">
           <div class="pane-head">
             <h2>入力</h2>
@@ -83,6 +106,7 @@ export class App {
           <pre class="code-view" data-id="output">(SVGを貼ると変換結果が表示される)</pre>
         </section>
       </main>
+      </div>
       <footer class="site-footer">
         <p>変換はすべてブラウザ内で行われ、SVGはどこにも送信されない。アニメーションSVGとscript入りSVGの動作は保証しない。</p>
       </footer>
@@ -108,6 +132,19 @@ export class App {
     this.el['copy']!.addEventListener('click', () => {
       void navigator.clipboard.writeText(this.el['output']!.textContent ?? '');
     });
+    this.el['theme']!.addEventListener('click', () => {
+      this.theme = nextTheme(this.theme);
+      this.renderTheme();
+    });
+    this.renderTheme();
+  }
+
+  private renderTheme(): void {
+    applyTheme(this.theme);
+    const label = THEME_LABEL[this.theme];
+    const btn = this.el['theme']!;
+    btn.innerHTML = `${THEME_ICON[this.theme]}<span>${label}</span>`;
+    btn.setAttribute('aria-label', `配色: ${label}(クリックで切り替え)`);
   }
 
   private options(): Options {
