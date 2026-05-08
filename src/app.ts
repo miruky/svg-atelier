@@ -77,8 +77,8 @@ export class App {
             <button type="button" class="ghost-btn" data-id="sample">サンプルを読み込む</button>
           </div>
           <textarea data-id="input" rows="12" spellcheck="false"
-            placeholder="SVGをここに貼る"></textarea>
-          <p class="parse-error" data-id="error" hidden></p>
+            aria-label="SVG入力" placeholder="SVGをここに貼る"></textarea>
+          <p class="parse-error" data-id="error" role="alert" hidden></p>
           <h2>処理</h2>
           <div class="options">
             <label class="opt-row"><input type="checkbox" data-id="opt-optimize" checked>
@@ -117,6 +117,7 @@ export class App {
             </span>
           </div>
           <pre class="code-view" data-id="output">(SVGを貼ると変換結果が表示される)</pre>
+          <span class="sr-only" data-id="status" role="status" aria-live="polite"></span>
         </section>
       </main>
       </div>
@@ -152,9 +153,11 @@ export class App {
         message = 'コピーできません';
       }
       copy.textContent = message;
+      this.el['status']!.textContent = `出力を${message}`;
       window.clearTimeout(this.copyTimer);
       this.copyTimer = window.setTimeout(() => {
         copy.textContent = 'コピー';
+        this.el['status']!.textContent = '';
       }, 1400);
     });
     this.el['download']!.addEventListener('click', () => {
@@ -169,6 +172,7 @@ export class App {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+      this.el['status']!.textContent = 'icon.svg をダウンロードしました';
     });
     this.el['theme']!.addEventListener('click', () => {
       this.theme = nextTheme(this.theme);

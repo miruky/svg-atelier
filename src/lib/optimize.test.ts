@@ -63,4 +63,10 @@ describe('roundNumbers', () => {
     expect(roundNumbers('M1.23456 7 8.999', 2)).toBe('M1.23 7 9');
     expect(roundNumbers('1.5e-7', 2)).toBe('0');
   });
+
+  it('精度を変えると丸め桁が変わる', () => {
+    expect(roundNumbers('M0.55555 1.44', 0)).toBe('M1 1');
+    expect(roundNumbers('M0.55555 1.44', 1)).toBe('M0.6 1.4');
+    expect(roundNumbers('M0.12345', 3)).toBe('M0.123');
+  });
 });

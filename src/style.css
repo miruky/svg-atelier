@@ -240,6 +240,16 @@ button {
   }
 }
 
+@media (max-width: 480px) {
+  .pane-head {
+    flex-wrap: wrap;
+  }
+  .out-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
 /* ── 作業領域(機能上必要な枠)── */
 
 .pane {
@@ -408,7 +418,7 @@ textarea:focus {
 }
 
 .color-chip span {
-  color: var(--ink-faint);
+  color: var(--ink-soft);
 }
 
 .color-chip.active {
@@ -458,7 +468,7 @@ textarea:focus {
 }
 
 .preview-cell span {
-  opacity: 0.7;
+  opacity: 0.85;
 }
 
 .preview-art {
@@ -489,12 +499,35 @@ textarea:focus {
   overflow: auto;
 }
 
+.opt-select {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--sunken);
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: border-color 0.16s var(--ease);
+}
+
+.opt-select:hover,
+.opt-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.out-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .size-note {
   font-family: var(--mono);
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
   color: var(--ink-soft);
-  margin-right: 12px;
 }
 
 .primary-btn {
@@ -505,6 +538,7 @@ textarea:focus {
   padding: 8px 18px;
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
   transition:
     background-color 0.16s var(--ease),
     opacity 0.16s var(--ease);
@@ -526,6 +560,7 @@ textarea:focus {
   color: var(--ink-soft);
   padding: 5px 13px;
   font-size: 12px;
+  white-space: nowrap;
   transition:
     color 0.16s var(--ease),
     border-color 0.16s var(--ease);
