@@ -43,6 +43,7 @@ export class App {
   private readonly el: Record<string, HTMLElement> = {};
   private currentColorTargets = new Set<string>();
   private theme: ThemeMode = loadTheme();
+  private copyTimer: number | undefined;
 
   constructor(private readonly root: HTMLElement) {
     this.render();
@@ -118,19 +119,31 @@ export class App {
 
   private wire(): void {
     const input = this.el['input'] as HTMLTextAreaElement;
-    input.addEventListener('input', () => this.update());
+    input.addEventListener('input', () => this.update(false));
     this.el['sample']!.addEventListener('click', () => {
       input.value = SAMPLE_SVG;
       this.currentColorTargets.clear();
-      this.update();
+      this.update(true);
     });
     for (const id of ['opt-optimize', 'opt-dropsize', 'a11y-deco', 'a11y-mean']) {
-      this.el[id]!.addEventListener('change', () => this.update());
+      this.el[id]!.addEventListener('change', () => this.update(true));
     }
     const label = this.el['label'] as HTMLInputElement;
-    label.addEventListener('input', () => this.update());
-    this.el['copy']!.addEventListener('click', () => {
-      void navigator.clipboard.writeText(this.el['output']!.textContent ?? '');
+    label.addEventListener('input', () => this.update(false));
+    const copy = this.el['copy'] as HTMLButtonElement;
+    copy.addEventListener('click', async () => {
+      const text = this.el['output']!.textContent ?? '';
+      let message = 'コピーしました';
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        message = 'コピーできません';
+      }
+      copy.textContent = message;
+      window.clearTimeout(this.copyTimer);
+      this.copyTimer = window.setTimeout(() => {
+        copy.textContent = 'コピー';
+      }, 1400);
     });
     this.el['theme']!.addEventListener('click', () => {
       this.theme = nextTheme(this.theme);
@@ -159,11 +172,14 @@ export class App {
     };
   }
 
-  private update(): void {
+  private update(animate = false): void {
     const source = (this.el['input'] as HTMLTextAreaElement).value;
     const error = this.el['error']!;
     const output = this.el['output']!;
     const copy = this.el['copy'] as HTMLButtonElement;
+    // 再構築のたびに自動再生しないよう、まずアニメーション用クラスを外す
+    this.el['previews']!.classList.remove('is-updated');
+    output.classList.remove('is-updated');
 
     if (source.trim() === '') {
       error.hidden = true;
@@ -204,6 +220,12 @@ export class App {
       `${new Blob([source]).size} B から ${new Blob([result]).size} B へ`;
     this.renderColors(colors);
     this.renderPreviews(result);
+
+    if (animate) {
+      void this.el['previews']!.offsetWidth;
+      this.el['previews']!.classList.add('is-updated');
+      output.classList.add('is-updated');
+    }
   }
 
   private renderColors(colors: Array<{ color: string; count: number }>): void {
@@ -229,7 +251,7 @@ export class App {
       btn.addEventListener('click', () => {
         if (entry.active) this.currentColorTargets.delete(entry.color);
         else this.currentColorTargets.add(entry.color);
-        this.update();
+        this.update(true);
       });
       list.appendChild(btn);
     }
