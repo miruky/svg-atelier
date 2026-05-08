@@ -7,8 +7,17 @@
       name="description"
       content="SVGアイコンの最適化・currentColor化・アクセシビリティ属性付与をブラウザ内で行うエディタ"
     />
+    <meta name="theme-color" content="#f4f3f1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#16151a" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <title>svg-atelier - SVGアイコンエディタ</title>
+    <script>
+      // 保存済みのテーマを描画前に当て、初期表示のちらつきを防ぐ
+      try {
+        var t = localStorage.getItem('svg-atelier.theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="app"></div>
