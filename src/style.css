@@ -489,12 +489,35 @@ textarea:focus {
   overflow: auto;
 }
 
+.opt-select {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--sunken);
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: border-color 0.16s var(--ease);
+}
+
+.opt-select:hover,
+.opt-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.out-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .size-note {
   font-family: var(--mono);
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
   color: var(--ink-soft);
-  margin-right: 12px;
 }
 
 .primary-btn {
