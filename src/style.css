@@ -567,6 +567,34 @@ textarea:focus {
   animation-delay: 0.06s;
 }
 
+/* 離散的な操作のとき、プレビューと出力をやわらかく立ち上げる */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.preview-grid.is-updated .preview-cell {
+  animation: pop-in 0.34s var(--ease) both;
+}
+
+.preview-grid.is-updated .preview-cell:nth-child(2) {
+  animation-delay: 0.05s;
+}
+
+.preview-grid.is-updated .preview-cell:nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+.code-view.is-updated {
+  animation: pop-in 0.34s var(--ease);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
