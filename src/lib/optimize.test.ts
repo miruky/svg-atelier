@@ -56,6 +56,31 @@ describe('optimizeSvg', () => {
     expect(root.getAttribute('viewBox')).toBe('0 0 8 8');
     expect(root.querySelector('path')?.getAttribute('fill')).toBe('#333');
   });
+
+  it('version と baseProfile を取り除く', () => {
+    const root = parseSvg(
+      '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" baseProfile="full"><path d="M0 0h8"/></svg>',
+    );
+    optimizeSvg(root);
+    expect(root.hasAttribute('version')).toBe(false);
+    expect(root.hasAttribute('baseProfile')).toBe(false);
+  });
+
+  it('使われていない xmlns:xlink 宣言を外す', () => {
+    const root = parseSvg(
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><path d="M0 0h8"/></svg>',
+    );
+    optimizeSvg(root);
+    expect(root.hasAttribute('xmlns:xlink')).toBe(false);
+  });
+
+  it('xlink:href を使っているときは xmlns:xlink を残す', () => {
+    const root = parseSvg(
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href="#a"/></svg>',
+    );
+    optimizeSvg(root);
+    expect(root.hasAttribute('xmlns:xlink')).toBe(true);
+  });
 });
 
 describe('roundNumbers', () => {
