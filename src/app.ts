@@ -1,8 +1,12 @@
 import { applyAccessibility, ensureViewBox, type A11yMode } from './lib/a11y';
 import { collectColors, replaceWithCurrentColor } from './lib/colors';
+import { formatOutput, type OutputFormat } from './lib/formats';
 import { optimizeSvg } from './lib/optimize';
 import { parseSvg, serializeSvg, SvgParseError } from './lib/parse';
 import { applyTheme, loadTheme, nextTheme, THEME_LABEL, type ThemeMode } from './theme';
+
+// サイズ確認のプレビューに使うアイコンサイズ(px)。
+const RAMP_SIZES = [16, 20, 24, 32, 48];
 
 const SAMPLE_SVG = `<?xml version="1.0" encoding="UTF-8"?>
 <!-- Generator: Some Editor 7.1 -->
@@ -44,6 +48,9 @@ export class App {
   private currentColorTargets = new Set<string>();
   private theme: ThemeMode = loadTheme();
   private copyTimer: number | undefined;
+  // 直近の最適化済みSVG(出力形式の切替やダウンロードの元になる正本)。
+  private lastSvg = '';
+  private format: OutputFormat = 'svg';
 
   constructor(private readonly root: HTMLElement) {
     this.render();
@@ -108,6 +115,8 @@ export class App {
         <section class="pane">
           <h2>プレビュー</h2>
           <div class="preview-grid" data-id="previews"></div>
+          <h2>サイズ確認</h2>
+          <div class="size-ramp" data-id="ramp" role="img" aria-label="複数サイズでの見え方"></div>
           <div class="pane-head">
             <h2>出力</h2>
             <span class="out-actions">
@@ -115,6 +124,11 @@ export class App {
               <button type="button" class="ghost-btn" data-id="download" disabled>ダウンロード</button>
               <button type="button" class="primary-btn" data-id="copy" disabled>コピー</button>
             </span>
+          </div>
+          <div class="format-tabs" role="tablist" aria-label="出力形式">
+            <button type="button" class="format-tab is-active" role="tab" aria-selected="true" data-id="fmt-svg" data-fmt="svg">SVG</button>
+            <button type="button" class="format-tab" role="tab" aria-selected="false" data-id="fmt-css" data-fmt="css">CSS</button>
+            <button type="button" class="format-tab" role="tab" aria-selected="false" data-id="fmt-base64" data-fmt="base64">Base64</button>
           </div>
           <pre class="code-view" data-id="output">(SVGを貼ると変換結果が表示される)</pre>
           <span class="sr-only" data-id="status" role="status" aria-live="polite"></span>
@@ -160,9 +174,12 @@ export class App {
         this.el['status']!.textContent = '';
       }, 1400);
     });
+    for (const fmt of ['svg', 'css', 'base64'] as const) {
+      this.el[`fmt-${fmt}`]!.addEventListener('click', () => this.setFormat(fmt));
+    }
     this.el['download']!.addEventListener('click', () => {
-      const text = this.el['output']!.textContent ?? '';
-      if (!text || text.startsWith('(')) return;
+      const text = this.lastSvg;
+      if (!text) return;
       const blob = new Blob([text], { type: 'image/svg+xml' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -252,9 +269,11 @@ export class App {
 
     if (source.trim() === '') {
       error.hidden = true;
+      this.lastSvg = '';
       output.textContent = '(SVGを貼ると変換結果が表示される)';
       this.el['colors']!.innerHTML = '';
       this.el['previews']!.innerHTML = '';
+      this.el['ramp']!.innerHTML = '';
       this.el['sizes']!.textContent = '';
       copy.disabled = true;
       download.disabled = true;
@@ -267,6 +286,7 @@ export class App {
     } catch (cause) {
       error.textContent = cause instanceof SvgParseError ? cause.message : '解析に失敗した';
       error.hidden = false;
+      this.lastSvg = '';
       copy.disabled = true;
       download.disabled = true;
       return;
@@ -285,13 +305,15 @@ export class App {
     }
 
     const result = serializeSvg(root);
-    output.textContent = result;
+    this.lastSvg = result;
+    this.renderOutput();
     copy.disabled = false;
     download.disabled = false;
     this.el['sizes']!.textContent =
       `${new Blob([source]).size} B から ${new Blob([result]).size} B へ`;
     this.renderColors(colors);
     this.renderPreviews(result);
+    this.renderSizeRamp(result);
 
     if (animate) {
       void this.el['previews']!.offsetWidth;
@@ -348,5 +370,41 @@ export class App {
       cell.append(holder, caption);
       grid.appendChild(cell);
     }
+  }
+
+  // 実寸の複数サイズで並べ、小さなアイコンサイズでも形が保てるか確かめる。
+  private renderSizeRamp(svgText: string): void {
+    const ramp = this.el['ramp']!;
+    ramp.innerHTML = '';
+    for (const size of RAMP_SIZES) {
+      const cell = document.createElement('div');
+      cell.className = 'ramp-cell';
+      const art = document.createElement('div');
+      art.className = 'ramp-art';
+      art.style.width = `${size}px`;
+      art.style.height = `${size}px`;
+      art.innerHTML = svgText;
+      const caption = document.createElement('span');
+      caption.textContent = `${size}`;
+      cell.append(art, caption);
+      ramp.appendChild(cell);
+    }
+  }
+
+  private setFormat(format: OutputFormat): void {
+    this.format = format;
+    for (const fmt of ['svg', 'css', 'base64'] as const) {
+      const tab = this.el[`fmt-${fmt}`]!;
+      const active = fmt === format;
+      tab.classList.toggle('is-active', active);
+      tab.setAttribute('aria-selected', String(active));
+    }
+    this.renderOutput();
+  }
+
+  // 正本のSVGを、選択中の形式に変換して出力欄へ描く。
+  private renderOutput(): void {
+    if (!this.lastSvg) return;
+    this.el['output']!.textContent = formatOutput(this.lastSvg, this.format);
   }
 }

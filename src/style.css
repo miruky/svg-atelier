@@ -484,6 +484,77 @@ textarea:focus {
   height: 100%;
 }
 
+/* ── サイズ確認の帯 ── */
+
+.size-ramp {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 18px 16px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--sunken);
+}
+
+.ramp-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ramp-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+}
+
+.ramp-art svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ── 出力形式のタブ ── */
+
+.format-tabs {
+  display: inline-flex;
+  gap: 2px;
+  margin-bottom: 12px;
+  padding: 3px;
+  background: var(--sunken);
+  border: 1px solid var(--rule);
+  border-radius: 9px;
+}
+
+.format-tab {
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  padding: 5px 14px;
+  border-radius: 6px;
+  transition:
+    color 0.16s var(--ease),
+    background-color 0.16s var(--ease);
+}
+
+.format-tab:hover {
+  color: var(--accent-strong);
+}
+
+.format-tab.is-active {
+  color: var(--ink);
+  background: var(--surface);
+}
+
 .code-view {
   font-family: var(--mono);
   font-size: 12px;
