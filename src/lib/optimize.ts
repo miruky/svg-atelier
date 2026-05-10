@@ -13,7 +13,8 @@ const EDITOR_NS_PREFIXES = [
   'i',
 ];
 const REMOVE_ELEMENTS = ['metadata', 'sodipodi:namedview', 'namedview'];
-const REMOVE_ATTRS = ['data-name', 'enable-background', 'xml:space'];
+// version は SVG 1.1 の名残で描画に影響しない。xml:space 等も同様に外す。
+const REMOVE_ATTRS = ['data-name', 'enable-background', 'xml:space', 'version', 'baseProfile'];
 
 export interface OptimizeResult {
   removedAttrs: number;
@@ -55,7 +56,22 @@ export function optimizeSvg(root: SVGSVGElement, precision = 2): OptimizeResult 
       result.removedNodes += 1;
     }
   }
+
+  // どこからも参照されていない xmlns:xlink 宣言は外す(xlink属性が無いとき)。
+  if (root.hasAttribute('xmlns:xlink') && !usesXlink(root)) {
+    root.removeAttribute('xmlns:xlink');
+    result.removedAttrs += 1;
+  }
   return result;
+}
+
+function usesXlink(root: SVGSVGElement): boolean {
+  for (const el of [root, ...root.querySelectorAll('*')]) {
+    for (const attr of el.attributes) {
+      if (attr.name.startsWith('xlink:')) return true;
+    }
+  }
+  return false;
 }
 
 function removeJunkNodes(root: SVGSVGElement, result: OptimizeResult): void {
