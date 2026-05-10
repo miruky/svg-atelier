@@ -588,6 +588,17 @@ textarea:focus {
   border-color: var(--accent);
 }
 
+.opt-summary {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.opt-summary:empty {
+  display: none;
+}
+
 .out-actions {
   display: inline-flex;
   align-items: center;
