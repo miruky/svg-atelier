@@ -51,6 +51,8 @@ export class App {
   // 直近の最適化済みSVG(出力形式の切替やダウンロードの元になる正本)。
   private lastSvg = '';
   private format: OutputFormat = 'svg';
+  // 直近に集計した置換可能な色(一括currentColor化のため)。
+  private lastColors: string[] = [];
 
   constructor(private readonly root: HTMLElement) {
     this.render();
@@ -108,7 +110,10 @@ export class App {
               </select>
             </div>
           </div>
-          <h2>色 → currentColor</h2>
+          <div class="pane-head">
+            <h2>色 → currentColor</h2>
+            <button type="button" class="ghost-btn" data-id="all-current" hidden>すべてcurrentColorに</button>
+          </div>
           <p class="hint">クリックした色をcurrentColorに置き換える。テーマの文字色に追従するようになる</p>
           <div class="color-list" data-id="colors"></div>
         </section>
@@ -131,6 +136,7 @@ export class App {
             <button type="button" class="format-tab" role="tab" aria-selected="false" data-id="fmt-base64" data-fmt="base64">Base64</button>
           </div>
           <pre class="code-view" data-id="output">(SVGを貼ると変換結果が表示される)</pre>
+          <p class="opt-summary" data-id="opt-summary"></p>
           <span class="sr-only" data-id="status" role="status" aria-live="polite"></span>
         </section>
       </main>
@@ -177,6 +183,15 @@ export class App {
     for (const fmt of ['svg', 'css', 'base64'] as const) {
       this.el[`fmt-${fmt}`]!.addEventListener('click', () => this.setFormat(fmt));
     }
+    this.el['all-current']!.addEventListener('click', () => {
+      const allActive =
+        this.lastColors.length > 0 && this.lastColors.every((c) => this.currentColorTargets.has(c));
+      for (const color of this.lastColors) {
+        if (allActive) this.currentColorTargets.delete(color);
+        else this.currentColorTargets.add(color);
+      }
+      this.update(true);
+    });
     this.el['download']!.addEventListener('click', () => {
       const text = this.lastSvg;
       if (!text) return;
@@ -270,11 +285,14 @@ export class App {
     if (source.trim() === '') {
       error.hidden = true;
       this.lastSvg = '';
+      this.lastColors = [];
       output.textContent = '(SVGを貼ると変換結果が表示される)';
       this.el['colors']!.innerHTML = '';
       this.el['previews']!.innerHTML = '';
       this.el['ramp']!.innerHTML = '';
       this.el['sizes']!.textContent = '';
+      this.el['opt-summary']!.textContent = '';
+      (this.el['all-current'] as HTMLButtonElement).hidden = true;
       copy.disabled = true;
       download.disabled = true;
       return;
@@ -287,6 +305,7 @@ export class App {
       error.textContent = cause instanceof SvgParseError ? cause.message : '解析に失敗した';
       error.hidden = false;
       this.lastSvg = '';
+      this.el['opt-summary']!.textContent = '';
       copy.disabled = true;
       download.disabled = true;
       return;
@@ -294,12 +313,15 @@ export class App {
     error.hidden = true;
 
     const opts = this.options();
-    if (opts.optimize) optimizeSvg(root, opts.precision);
+    const optResult = opts.optimize
+      ? optimizeSvg(root, opts.precision)
+      : { removedAttrs: 0, removedNodes: 0 };
     ensureViewBox(root, opts.dropSize);
     applyAccessibility(root, opts.a11yMode, opts.label);
 
     // 置換対象に選ばれている色を変換(集計は置換前の色で行う)
     const colors = collectColors(root);
+    this.lastColors = colors.map((c) => c.color);
     for (const target of this.currentColorTargets) {
       replaceWithCurrentColor(root, target);
     }
@@ -309,8 +331,10 @@ export class App {
     this.renderOutput();
     copy.disabled = false;
     download.disabled = false;
-    this.el['sizes']!.textContent =
-      `${new Blob([source]).size} B から ${new Blob([result]).size} B へ`;
+    const sourceBytes = new Blob([source]).size;
+    const resultBytes = new Blob([result]).size;
+    this.el['sizes']!.textContent = `${sourceBytes} B から ${resultBytes} B へ`;
+    this.renderOptSummary(sourceBytes, resultBytes, optResult);
     this.renderColors(colors);
     this.renderPreviews(result);
     this.renderSizeRamp(result);
@@ -331,6 +355,15 @@ export class App {
         .filter((color) => !colors.some((c) => c.color === color))
         .map((color) => ({ color, count: 0, active: true })),
     ];
+    const allBtn = this.el['all-current'] as HTMLButtonElement;
+    if (this.lastColors.length === 0) {
+      allBtn.hidden = true;
+    } else {
+      allBtn.hidden = false;
+      const allActive = this.lastColors.every((c) => this.currentColorTargets.has(c));
+      allBtn.textContent = allActive ? 'currentColorを解除' : 'すべてcurrentColorに';
+    }
+
     if (entries.length === 0) {
       list.textContent = '置き換え可能な色は残っていない';
       return;
@@ -389,6 +422,22 @@ export class App {
       cell.append(art, caption);
       ramp.appendChild(cell);
     }
+  }
+
+  // 削減率と除去した不要物の件数を一行で伝える。
+  private renderOptSummary(
+    sourceBytes: number,
+    resultBytes: number,
+    opt: { removedAttrs: number; removedNodes: number },
+  ): void {
+    const parts: string[] = [];
+    const reduction = sourceBytes > 0 ? Math.round((1 - resultBytes / sourceBytes) * 100) : 0;
+    if (reduction > 0) parts.push(`${reduction}%削減`);
+    const removed: string[] = [];
+    if (opt.removedNodes > 0) removed.push(`要素${opt.removedNodes}件`);
+    if (opt.removedAttrs > 0) removed.push(`属性${opt.removedAttrs}個`);
+    if (removed.length > 0) parts.push(`不要な${removed.join('・')}を除去`);
+    this.el['opt-summary']!.textContent = parts.join(' ・ ');
   }
 
   private setFormat(format: OutputFormat): void {
